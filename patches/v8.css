@@ -1,0 +1,21 @@
+/* AI HQ V8 — Execution Gateway */
+.v8-nav{grid-template-columns:repeat(8,minmax(48px,1fr));overflow-x:auto}
+.v8-nav .nav-btn{min-width:0;font-size:7px}.v8-nav .nav-btn strong{font-size:15px}
+.v8-hero{display:grid;gap:14px;background:linear-gradient(145deg,rgba(12,32,47,.98),rgba(19,23,49,.98));border-color:rgba(79,214,255,.3)}
+.v8-hero h3{font-size:25px;margin:2px 0 5px}.v8-stats{margin-top:12px}
+.v8-connect{display:grid;gap:12px}.v8-connect label{display:grid;gap:6px;font-size:10px;color:var(--muted)}
+.v8-connect input,.v8-connect select{width:100%;background:#0c1320;border:1px solid #2a3854;color:var(--text);border-radius:12px;padding:10px;box-sizing:border-box}
+.v8-health{padding:9px 10px;border-radius:10px;background:#111927;border:1px solid #273651;color:var(--muted);font-size:9px}
+.v8-health.ok{color:var(--green);border-color:rgba(85,220,157,.28);background:rgba(34,94,67,.18)}
+.v8-health.bad{color:#ff9aa5;border-color:rgba(255,96,110,.28);background:rgba(94,32,42,.18)}
+.v8-jobs,.v8-artifacts,.v8-approvals{display:grid;gap:8px}.v8-job{display:grid;gap:9px}
+.v8-status{font-size:8px;font-weight:900;text-transform:uppercase;padding:5px 7px;border-radius:8px;border:1px solid #32435e;color:var(--muted)}
+.v8-status.running{color:var(--cyan);border-color:rgba(108,229,255,.35)}
+.v8-status.success{color:var(--green);border-color:rgba(85,220,157,.3)}
+.v8-status.failed,.v8-status.cancelled{color:#ff9aa5;border-color:rgba(255,96,110,.34)}
+.v8-status.approval{color:#ffd18b;border-color:rgba(255,183,77,.35)}
+.v8-actions{display:flex;gap:6px;flex-wrap:wrap}.v8-error{margin:0;padding:8px 9px;border-radius:9px;background:rgba(85,25,35,.22);color:#ff9aa5;font-size:9px}
+.v8-approval,.v8-artifact,.v8-director{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.v8-approval{border-color:rgba(255,183,77,.3)}.v8-artifact{border-color:rgba(107,221,255,.15)}
+.v8-director{margin-bottom:12px;border-color:rgba(79,214,255,.26)}
+@media(max-width:540px){.v8-nav{grid-template-columns:repeat(8,54px);justify-content:start}.v8-approval,.v8-artifact,.v8-director{align-items:flex-start;flex-direction:column}.v8-actions{width:100%}}

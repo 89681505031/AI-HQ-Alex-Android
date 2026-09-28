@@ -35,6 +35,20 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Test V8 gateway protocol
+        run: |
+          node --check gateway/reference-server.mjs
+          node gateway/reference-server.mjs >/tmp/aihq-gateway.log 2>&1 &
+          GATEWAY_PID=$!
+          trap 'kill $GATEWAY_PID || true' EXIT
+          sleep 1
+          curl -fsS http://127.0.0.1:8787/health | tee /tmp/health.json
+          grep -q '"ok":true' /tmp/health.json
+          curl -fsS -X POST http://127.0.0.1:8787/jobs             -H 'content-type: application/json'             -d '{"clientJobId":"ci-test","type":"test.run","projectId":"ci","missionId":"ci","payload":{"suite":"smoke"}}'             | tee /tmp/job.json
+          grep -q '"status":"queued"' /tmp/job.json
+          kill $GATEWAY_PID
+          trap - EXIT
+
       - name: Reconstruct Android source
         run: |
           rm -rf build-src
@@ -45,33 +59,36 @@ jobs:
           tar -xzf /tmp/aihq-source.tar.gz -C build-src
           test -f build-src/AI-HQ-Alex-Android/settings.gradle
 
-      - name: Apply V6 + V7 modules
+      - name: Apply V6 + V7 + V8 modules
         run: |
           ASSETS="build-src/AI-HQ-Alex-Android/app/src/main/assets"
           cp patches/v6.js "$ASSETS/v6.js"
           cp patches/v6.css "$ASSETS/v6.css"
           cp patches/v7.js "$ASSETS/v7.js"
           cp patches/v7.css "$ASSETS/v7.css"
+          cp patches/v8.js "$ASSETS/v8.js"
+          cp patches/v8.css "$ASSETS/v8.css"
           node --check "$ASSETS/v6.js"
           node --check "$ASSETS/v7.js"
+          node --check "$ASSETS/v8.js"
           python3 - <<'PY'
           from pathlib import Path
           root=Path("build-src/AI-HQ-Alex-Android")
           index=root/"app/src/main/assets/index.html"
           s=index.read_text()
-          s=s.replace("AI HQ: Алекс — V5","AI HQ: Алекс — V7")
-          s=s.replace('<link rel="stylesheet" href="styles.css" />','<link rel="stylesheet" href="styles.css" />\n  <link rel="stylesheet" href="v6.css" />\n  <link rel="stylesheet" href="v7.css" />')
-          s=s.replace('<script src="app.js"></script>','<script src="app.js"></script>\n  <script src="v6.js"></script>\n  <script src="v7.js"></script>')
+          s=s.replace("AI HQ: Алекс — V5","AI HQ: Алекс — V8")
+          s=s.replace('<link rel="stylesheet" href="styles.css" />','<link rel="stylesheet" href="styles.css" />\n  <link rel="stylesheet" href="v6.css" />\n  <link rel="stylesheet" href="v7.css" />\n  <link rel="stylesheet" href="v8.css" />')
+          s=s.replace('<script src="app.js"></script>','<script src="app.js"></script>\n  <script src="v6.js"></script>\n  <script src="v7.js"></script>\n  <script src="v8.js"></script>')
           index.write_text(s)
           gradle=root/"app/build.gradle"
           g=gradle.read_text()
           g=g.replace("targetSdk 27","targetSdk 35")
-          g=g.replace("versionCode 5","versionCode 7")
-          g=g.replace("versionName '5.0'","versionName '7.0'")
+          g=g.replace("versionCode 5","versionCode 8")
+          g=g.replace("versionName '5.0'","versionName '8.0'")
           gradle.write_text(g)
           PY
-          grep -q 'v7.js' "$ASSETS/index.html"
-          grep -q "versionName '7.0'" build-src/AI-HQ-Alex-Android/app/build.gradle
+          grep -q 'v8.js' "$ASSETS/index.html"
+          grep -q "versionName '8.0'" build-src/AI-HQ-Alex-Android/app/build.gradle
 
       - name: Build debug APK
         working-directory: build-src/AI-HQ-Alex-Android
@@ -80,12 +97,12 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp build-src/AI-HQ-Alex-Android/app/build/outputs/apk/debug/app-debug.apk out/AI-HQ-Alex-v7-debug.apk
-          sha256sum out/AI-HQ-Alex-v7-debug.apk
+          cp build-src/AI-HQ-Alex-Android/app/build/outputs/apk/debug/app-debug.apk out/AI-HQ-Alex-v8-debug.apk
+          sha256sum out/AI-HQ-Alex-v8-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-HQ-Alex-v7-debug-apk
-          path: out/AI-HQ-Alex-v7-debug.apk
+          name: AI-HQ-Alex-v8-debug-apk
+          path: out/AI-HQ-Alex-v8-debug.apk
           if-no-files-found: error
