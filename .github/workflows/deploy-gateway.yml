@@ -2,12 +2,49 @@ name: Deploy V9 Gateway
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'gateway-v9/**'
+      - '.github/workflows/deploy-gateway.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'gateway-v9/**'
+      - '.github/workflows/deploy-gateway.yml'
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+      missing: ${{ steps.check.outputs.missing }}
+    steps:
+      - name: Check deployment secret names
+        id: check
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
+        run: |
+          missing=""
+          [ -z "$VERCEL_TOKEN" ] && missing="$missing GATEWAY_VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ] && missing="$missing GATEWAY_VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing GATEWAY_VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "missing=$missing" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Gateway deploy not configured::Missing secret names:$missing"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "missing=" >> "$GITHUB_OUTPUT"
+          fi
+
+  validate:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -21,33 +58,85 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Validate deployment secrets
-        env:
-          VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
+      - name: Validate gateway source
         run: |
-          test -n "$VERCEL_TOKEN" || (echo "Missing GATEWAY_VERCEL_TOKEN" && exit 1)
-          test -n "$VERCEL_ORG_ID" || (echo "Missing GATEWAY_VERCEL_ORG_ID" && exit 1)
-          test -n "$VERCEL_PROJECT_ID" || (echo "Missing GATEWAY_VERCEL_PROJECT_ID" && exit 1)
+          npm run check
+          AIHQ_MOCK=1 AIHQ_SESSION_TOKEN=test AIHQ_JOB_SECRET=test GITHUB_OWNER=mock-owner npm run selftest
+
+  deploy:
+    needs: [preflight, validate]
+    if: github.event_name != 'pull_request' && needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway-v9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pinned Vercel CLI
+        run: npm install --no-save vercel@59.19.1
 
       - name: Pull Vercel project settings
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
-        run: npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: npx vercel@59.19.1 pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build gateway
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
-        run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+        run: npx vercel@59.19.1 build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy gateway to production
+        id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
-        run: npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: |
+          set -euo pipefail
+          URL=$(npx vercel@59.19.1 deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Gateway URL: $URL"
+
+      - name: Verify health endpoint
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          sleep 5
+          curl -fsS "$URL/health" | tee /tmp/health.json
+          grep -q '"ok":true' /tmp/health.json
+
+      - name: Deployment summary
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "### AI HQ V9 Gateway"
+            echo ""
+            echo "- Status: READY"
+            echo "- URL: $URL"
+            echo "- Health: OK"
+            echo "- Vercel CLI: 59.19.1"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  not-configured:
+    needs: [preflight, validate]
+    if: github.event_name != 'pull_request' && needs.preflight.outputs.ready != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment skipped safely
+        run: |
+          echo "Gateway code is valid, but Vercel deployment is not configured."
+          echo "Missing secret names: ${{ needs.preflight.outputs.missing }}"
+          echo "No secret values were read or printed."
