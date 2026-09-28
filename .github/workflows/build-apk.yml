@@ -91,7 +91,7 @@ jobs:
           grep -q "versionName '9.3'" build-src/AI-HQ-Alex-Android/app/build.gradle
           python3 - <<'PY'
           from pathlib import Path
-          s=Path("$ASSETS/v9.js").read_text()
+          s=Path("build-src/AI-HQ-Alex-Android/app/src/main/assets/v9.js").read_text()
           required=[
               "$('[data-v9-health]').forEach",
               "$('[data-v9-trial]').forEach",
