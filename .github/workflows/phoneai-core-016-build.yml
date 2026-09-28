@@ -50,12 +50,17 @@ jobs:
         with:
           gradle-version: "8.13"
 
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+
       - name: Install Android SDK components
         shell: bash
         run: |
           set -euxo pipefail
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager             "platforms;android-36"             "build-tools;35.0.0"             "ndk;29.0.13113456"             "cmake;3.22.1"
+          SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0" "ndk;29.0.13113456" "cmake;3.22.1"
 
       - name: Prepare native AI dependencies
         working-directory: phoneai-build
