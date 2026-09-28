@@ -1,11 +1,11 @@
 /* AI HQ V9 — Production Gateway */
 (() => {
-  const V9_VERSION = '9.0';
+  const V9_VERSION = '9.1';
 
   function ensureV9() {
     state.v9 = state.v9 || {};
     state.v9.settings = {
-      gatewayUrl: state.v9.settings?.gatewayUrl || state.v8?.settings?.gatewayUrl || '',
+      gatewayUrl: state.v9.settings?.gatewayUrl || state.v8?.settings?.gatewayUrl || 'https://ai-hq-gateway.vercel.app',
       pollMs: 1200,
       maxPolls: 90,
       ...state.v9.settings
@@ -359,12 +359,232 @@
     save(); render();
   }
 
+  function trialFiles() {
+    return {
+      'settings.gradle': `pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'AI-HQ-Trial-Notes'
+include ':app'
+`,
+      'build.gradle': `plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+`,
+      'gradle.properties': `org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+android.useAndroidX=false
+`,
+      'app/build.gradle': `plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.aihq.trialnotes'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.aihq.trialnotes'
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+`,
+      'app/src/main/AndroidManifest.xml': `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="true"
+        android:label="AI HQ Trial Notes"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+`,
+      'app/src/main/java/com/aihq/trialnotes/MainActivity.java': `package com.aihq.trialnotes;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.content.SharedPreferences;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+public class MainActivity extends Activity {
+    private final ArrayList<String> notes = new ArrayList<>();
+    private ArrayAdapter<String> adapter;
+    private SharedPreferences prefs;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences("notes", MODE_PRIVATE);
+        notes.addAll(prefs.getStringSet("items", new LinkedHashSet<>()));
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(32, 32, 32, 32);
+
+        TextView title = new TextView(this);
+        title.setText("AI HQ Trial Notes");
+        title.setTextSize(24f);
+        root.addView(title, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        EditText input = new EditText(this);
+        input.setHint("Введите заметку");
+        root.addView(input, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        Button add = new Button(this);
+        add.setText("Добавить");
+        root.addView(add);
+
+        ListView list = new ListView(this);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, notes);
+        list.setAdapter(adapter);
+        root.addView(list, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        add.setOnClickListener(v -> {
+            String value = input.getText().toString().trim();
+            if (!value.isEmpty()) {
+                notes.add(value);
+                input.setText("");
+                save();
+                adapter.notifyDataSetChanged();
+            }
+        });
+
+        list.setOnItemLongClickListener((parent, view, position, id) -> {
+            notes.remove(position);
+            save();
+            adapter.notifyDataSetChanged();
+            return true;
+        });
+
+        setContentView(root);
+    }
+
+    private void save() {
+        prefs.edit().putStringSet("items", new LinkedHashSet<>(notes)).apply();
+    }
+}
+`,
+      'README.md': `# AI HQ Trial Notes
+
+Контрольный Android-проект для первого реального испытания AI HQ Production Gateway.
+
+## Проверяемая цепочка
+1. Gateway создаёт настоящий GitHub-репозиторий.
+2. Gateway записывает эти файлы.
+3. GitHub Actions запускает тестовый этап.
+4. GitHub Actions собирает debug APK.
+5. AI HQ получает ссылку на Actions/артефакт.
+
+Долгое нажатие на заметку удаляет её.
+`
+    };
+  }
+
+  function createFirstRealTrial() {
+    ensureV9();
+    const old = state.projects.find(p => p.name === 'AI HQ Trial Notes');
+    if (old) {
+      const mission = state.missions.find(m => m.projectId === old.id);
+      if (mission) {
+        prepareProductionPipeline(mission.id);
+        state.nav = 'production';
+        save(); render();
+        toast('Испытание уже подготовлено');
+        return;
+      }
+    }
+
+    const team = recommendTeam('Android');
+    const p = normalizeProject({
+      id: uid('p'),
+      name: 'AI HQ Trial Notes',
+      type: 'Android',
+      status: 'Тестирование',
+      progress: 70,
+      priority: 'Высокий',
+      description: 'Контрольный Android-проект для проверки реального Production Gateway: GitHub → Actions → APK.',
+      team,
+      tasks: 0,
+      risks: [],
+      workflow: [],
+      artifacts: [],
+      autopilot: {status:'idle', lastRun:''}
+    });
+    initWorkflow(p);
+    state.projects.unshift(p);
+
+    const files = trialFiles();
+    Object.entries(files).forEach(([path,content]) => upsertFile(p.id, path, content, 'АРГО · Trial Mode'));
+
+    const m = {
+      id: uid('mission'),
+      title: 'Первое реальное испытание AI HQ',
+      goal: 'Проверить настоящий внешний контур: создать GitHub-репозиторий, записать Android-проект, запустить GitHub Actions и получить APK.',
+      projectId: p.id,
+      priority: 'Высокий',
+      status: 'Готова к Production',
+      engine: 'trial',
+      pipeline: {status:'idle', lastRun:''},
+      created: todayLabel(),
+      tasks: [],
+      messages: [],
+      results: []
+    };
+    state.missions.unshift(m);
+    planMission(m);
+    addMemory('Первое реальное испытание', 'Подготовлен контрольный Android-проект AI HQ Trial Notes для проверки GitHub → Actions → APK.', p.id, 'АРГО');
+    addEvent('Trial Mode подготовлен', 'AI HQ Trial Notes · реальный Production Gateway', '▶');
+    save();
+
+    prepareProductionPipeline(m.id);
+    state.nav = 'production';
+    save(); render();
+    toast('Первое реальное испытание готово');
+  }
+
   function productionPage() {
     ensureV9();
     const jobs = state.v8.jobs.filter(j => j.v9).slice().reverse();
     const approvals = state.v9.approvals.filter(a => a.status === 'pending');
     const h = state.v9.health;
-    return `<section class="card v9-hero"><div><div class="director-title">AI HQ V${V9_VERSION}</div><h3>Production Gateway</h3><p class="meta">Реальный GitHub + Actions + Vercel через защищённый серверный контур</p></div><div class="hero-actions"><button class="btn primary" data-v9-run-all>▶ Выполнить production</button><button class="btn" data-v9-health>Проверить сервер</button></div></section>
+    return `<section class="card v9-hero"><div><div class="director-title">AI HQ V${V9_VERSION}</div><h3>Production Gateway</h3><p class="meta">Реальный GitHub + Actions + Vercel через защищённый серверный контур</p></div><div class="hero-actions"><button class="btn primary" data-v9-trial>★ Первое реальное испытание</button><button class="btn" data-v9-run-all>▶ Выполнить production</button><button class="btn" data-v9-health>Проверить сервер</button></div></section>
     <div class="section-head"><h3>Сервер</h3><span>${h?.ok ? 'ONLINE' : 'OFFLINE'}</span></div>
     <section class="card v9-server"><label>Production Gateway URL<input id="v9Url" placeholder="https://your-gateway.vercel.app" value="${esc(state.v9.settings.gatewayUrl || '')}"></label><label>Короткоживущий session token<input id="v9Token" type="password" placeholder="Не сохраняется в приложении"></label><div class="v9-health ${h?.ok ? 'ok' : h ? 'bad' : ''}">${h?.ok ? `● ${esc(h.service || 'Gateway')} V${esc(h.version || '')} · ${h.latency} ms · GitHub ${h.providers?.github ? '✓' : '×'} · Vercel ${h.providers?.vercel ? '✓' : '×'}` : h ? `● ${esc(h.error || 'Ошибка')}` : '● Сервер ещё не проверен'}</div></section>
     ${approvals.length ? `<div class="section-head"><h3>Решения директора</h3><span>${approvals.length}</span></div><div class="v9-approvals">${approvals.map(a => { const j=state.v8.jobs.find(x=>x.id===a.jobId); return `<article class="card v9-approval"><div><b>${esc(a.title)}</b><div class="meta">release.publish · ${esc(project(j?.projectId)?.name || '')}</div></div><div class="v8-actions"><button class="btn primary mini" data-v9-approve="${a.id}">Одобрить релиз</button><button class="btn danger mini" data-v9-reject="${a.id}">Отклонить</button></div></article>`; }).join('')}</div>` : ''}
@@ -417,7 +637,8 @@
   const oldBindGlobal = bindGlobal;
   bindGlobal = function() {
     oldBindGlobal();
-    $$('[data-v9-run-all]').forEach(b => b.onclick = () => runProductionPipeline(''));
+    $('[data-v9-trial]').forEach(b => b.onclick = createFirstRealTrial);
+    $('[data-v9-run-all]').forEach(b => b.onclick = () => runProductionPipeline(''));
     $$('[data-v9-health]').forEach(b => b.onclick = checkProductionGateway);
     $$('[data-v9-run]').forEach(b => b.onclick = () => runProductionJob(b.dataset.v9Run));
     $$('[data-v9-approve]').forEach(b => b.onclick = () => approveRelease(b.dataset.v9Approve));
@@ -435,7 +656,7 @@
   };
 
   ensureV9();
-  v9Log('AI HQ V9 активирован', 'Production Gateway готов к реальным GitHub/Vercel операциям');
+  v9Log('AI HQ V9.1 активирован', 'Production Gateway подключён: https://ai-hq-gateway.vercel.app');
   save();
   render();
 })();
