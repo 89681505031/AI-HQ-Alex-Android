@@ -71,12 +71,42 @@ jobs:
           ./scripts/setup_whisper.sh
           ./scripts/setup_sherpa_onnx.sh
 
+      - name: Unify GGML runtime for Llama and Whisper
+        working-directory: phoneai-build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle.kts")
+          s = p.read_text(encoding="utf-8")
+          if "libggml-base.so" not in s:
+              anchor = "    buildFeatures {\n"
+              block = """    packaging {
+                  jniLibs {
+                      pickFirsts += setOf(
+                          "**/libggml.so",
+                          "**/libggml-base.so",
+                          "**/libggml-cpu.so"
+                      )
+                  }
+              }
+
+              """
+              if anchor not in s:
+                  raise SystemExit("Could not locate android packaging insertion point")
+              s = s.replace(anchor, block + anchor, 1)
+              p.write_text(s, encoding="utf-8")
+          PY
+
       - name: Build PhoneAI debug APK
         working-directory: phoneai-build
         shell: bash
         run: |
           set -euxo pipefail
-          gradle :app:assembleDebug --stacktrace --no-daemon
+          GGML_HOME="$PWD/third_party/llama.cpp/ggml"
+          test -d "$GGML_HOME"
+          gradle :app:assembleDebug -PGGML_HOME="$GGML_HOME" --stacktrace --no-daemon
 
       - name: Collect APK
         shell: bash
