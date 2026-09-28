@@ -1,0 +1,89 @@
+name: PhoneAI Core 0.16 APK
+
+on:
+  push:
+    branches:
+      - phoneai-core-0.16-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PHONEAI_OPENCL: "0"
+      PHONEAI_NDK_VERSION: "29.0.13113456"
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct PhoneAI source bundle
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p phoneai-build
+          cat phoneai-bundle-v2/part_*.txt > PhoneAICore-0.16-build-min.b64
+          echo "a61c9a9fa0535a478eae39b2d22cbfc1e627e7ad4bc018cec2ac8fbd024ad0ea  PhoneAICore-0.16-build-min.b64" | sha256sum -c -
+          base64 -d PhoneAICore-0.16-build-min.b64 > PhoneAICore-0.16-build-min.zip
+          echo "2ce4dd183c64ca7d47cf2b07e7095206337876d9bfec005a6d4317c416664d1c  PhoneAICore-0.16-build-min.zip" | sha256sum -c -
+          unzip -q PhoneAICore-0.16-build-min.zip -d phoneai-build
+          test -f phoneai-build/app/build.gradle.kts
+          test -f phoneai-build/scripts/setup_llama.sh
+          test -f phoneai-build/scripts/setup_whisper.sh
+          test -f phoneai-build/scripts/setup_sherpa_onnx.sh
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager             "platforms;android-36"             "build-tools;35.0.0"             "ndk;29.0.13113456"             "cmake;3.22.1"
+
+      - name: Prepare native AI dependencies
+        working-directory: phoneai-build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          chmod +x scripts/*.sh || true
+          ./scripts/setup_llama.sh
+          ./scripts/setup_whisper.sh
+          ./scripts/setup_sherpa_onnx.sh
+
+      - name: Build PhoneAI debug APK
+        working-directory: phoneai-build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="$(find phoneai-build/app/build/outputs/apk/debug -name '*.apk' -type f | head -1)"
+          test -n "$APK"
+          cp "$APK" PhoneAI-Core-0.16-Sakha-CPU-Text-ASR-KWS-debug.apk
+          sha256sum PhoneAI-Core-0.16-Sakha-CPU-Text-ASR-KWS-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhoneAI-Core-0.16-Sakha-CPU-Text-ASR-KWS-debug
+          path: PhoneAI-Core-0.16-Sakha-CPU-Text-ASR-KWS-debug.apk
+          if-no-files-found: error
+          retention-days: 14
