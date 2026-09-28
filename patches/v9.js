@@ -1,6 +1,6 @@
 /* AI HQ V9 — Production Gateway */
 (() => {
-  const V9_VERSION = '9.1';
+  const V9_VERSION = '9.2';
 
   function ensureV9() {
     state.v9 = state.v9 || {};
@@ -652,11 +652,11 @@ public class MainActivity extends Activity {
       save();
     };
     const tok = $('#v9Token');
-    if (tok) tok.onchange = () => { setToken(tok.value.trim()); toast(tok.value ? 'Session token принят' : 'Session token очищен'); };
+    if (tok) { const syncToken = () => setToken(tok.value.trim()); tok.oninput = syncToken; tok.onchange = () => { syncToken(); toast(tok.value ? 'Session token принят' : 'Session token очищен'); }; }
   };
 
   ensureV9();
-  v9Log('AI HQ V9.1 активирован', 'Production Gateway подключён: https://ai-hq-gateway.vercel.app');
+  v9Log('AI HQ V9.2 активирован', 'Исправлены кнопки Production и подключён live Gateway');
   save();
   render();
 })();
