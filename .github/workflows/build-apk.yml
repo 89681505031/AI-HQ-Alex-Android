@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -16,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -26,7 +28,6 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           test -d "$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms" | tail -20
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
 
       - name: Set up Gradle
@@ -44,6 +45,31 @@ jobs:
           tar -xzf /tmp/aihq-source.tar.gz -C build-src
           test -f build-src/AI-HQ-Alex-Android/settings.gradle
 
+      - name: Apply V6 command-center module
+        run: |
+          ASSETS="build-src/AI-HQ-Alex-Android/app/src/main/assets"
+          cp patches/v6.js "$ASSETS/v6.js"
+          cp patches/v6.css "$ASSETS/v6.css"
+          node --check "$ASSETS/v6.js"
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("build-src/AI-HQ-Alex-Android")
+          index=root/"app/src/main/assets/index.html"
+          s=index.read_text()
+          s=s.replace("AI HQ: Алекс — V5","AI HQ: Алекс — V6")
+          s=s.replace('<link rel="stylesheet" href="styles.css" />','<link rel="stylesheet" href="styles.css" />\n  <link rel="stylesheet" href="v6.css" />')
+          s=s.replace('<script src="app.js"></script>','<script src="app.js"></script>\n  <script src="v6.js"></script>')
+          index.write_text(s)
+          gradle=root/"app/build.gradle"
+          g=gradle.read_text()
+          g=g.replace("targetSdk 27","targetSdk 35")
+          g=g.replace("versionCode 5","versionCode 6")
+          g=g.replace("versionName '5.0'","versionName '6.0'")
+          gradle.write_text(g)
+          PY
+          grep -q 'v6.js' "$ASSETS/index.html"
+          grep -q "versionName '6.0'" build-src/AI-HQ-Alex-Android/app/build.gradle
+
       - name: Build debug APK
         working-directory: build-src/AI-HQ-Alex-Android
         run: gradle :app:assembleDebug --stacktrace
@@ -51,12 +77,12 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp build-src/AI-HQ-Alex-Android/app/build/outputs/apk/debug/app-debug.apk out/AI-HQ-Alex-debug.apk
-          sha256sum out/AI-HQ-Alex-debug.apk
+          cp build-src/AI-HQ-Alex-Android/app/build/outputs/apk/debug/app-debug.apk out/AI-HQ-Alex-v6-debug.apk
+          sha256sum out/AI-HQ-Alex-v6-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-HQ-Alex-debug-apk
-          path: out/AI-HQ-Alex-debug.apk
+          name: AI-HQ-Alex-v6-debug-apk
+          path: out/AI-HQ-Alex-v6-debug.apk
           if-no-files-found: error
