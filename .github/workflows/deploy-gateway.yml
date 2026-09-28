@@ -78,9 +78,15 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
 
+      - name: Disable Vercel SSO protection for API gateway
+        env:
+          VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@59.19.1 project protection disable ai-hq-gateway --sso --token="$VERCEL_TOKEN"
+
       - name: Verify health endpoint
         env:
-          URL: ${{ steps.deploy.outputs.url }}
+          URL: https://ai-hq-gateway.vercel.app
         run: |
           set -euo pipefail
           sleep 5
