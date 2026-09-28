@@ -1,3 +1,5 @@
 # Deploy trigger
 
 Triggered after gateway credentials were configured by the owner.
+
+Retry after GATEWAY_VERCEL_TOKEN configured.
