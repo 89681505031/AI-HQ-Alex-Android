@@ -88,7 +88,7 @@ jobs:
           gradle.write_text(g)
           PY
           grep -q 'v9.js' "$ASSETS/index.html"
-          grep -q "versionName '9.2'" build-src/AI-HQ-Alex-Android/app/build.gradle
+          grep -q "versionName '9.2.1'" build-src/AI-HQ-Alex-Android/app/build.gradle
 
       - name: Build debug APK
         working-directory: build-src/AI-HQ-Alex-Android
