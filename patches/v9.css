@@ -1,0 +1,15 @@
+/* AI HQ V9 — Production Gateway */
+.v9-nav{grid-template-columns:repeat(8,minmax(52px,1fr));overflow-x:auto}
+.v9-nav .nav-btn{min-width:0;font-size:7px}.v9-nav .nav-btn strong{font-size:15px}
+.v9-hero{display:grid;gap:14px;background:linear-gradient(145deg,rgba(9,31,45,.98),rgba(22,18,48,.98));border-color:rgba(60,222,194,.28)}
+.v9-hero h3{font-size:26px;margin:2px 0 5px}
+.v9-server{display:grid;gap:12px}.v9-server label{display:grid;gap:6px;font-size:10px;color:var(--muted)}
+.v9-server input{width:100%;box-sizing:border-box;background:#0b1420;color:var(--text);border:1px solid #2b3b55;border-radius:12px;padding:10px}
+.v9-health{padding:10px;border-radius:11px;background:#111927;border:1px solid #293952;font-size:9px;color:var(--muted)}
+.v9-health.ok{color:var(--green);border-color:rgba(85,220,157,.28);background:rgba(31,91,65,.18)}
+.v9-health.bad{color:#ff9aa5;border-color:rgba(255,96,110,.32);background:rgba(91,30,41,.18)}
+.v9-jobs,.v9-approvals{display:grid;gap:8px}.v9-job{display:grid;gap:9px}
+.v9-approval,.v9-director{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.v9-approval{border-color:rgba(255,183,77,.3)}
+.v9-director{margin-bottom:12px;border-color:rgba(60,222,194,.28)}
+@media(max-width:560px){.v9-nav{grid-template-columns:repeat(8,56px);justify-content:start}.v9-approval,.v9-director{align-items:flex-start;flex-direction:column}}
