@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - phoneai-core-0.16-build
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
