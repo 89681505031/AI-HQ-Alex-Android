@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           sleep 5
-          curl -fsS "$URL/health" | tee /tmp/health.json
+          curl -fsSL "$URL/health" | tee /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
 
       - name: Deployment summary
