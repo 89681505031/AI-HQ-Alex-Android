@@ -103,7 +103,9 @@ jobs:
           ]
           assert all(x in s for x in required), "Missing correct Production button bindings"
           assert all(x not in s for x in broken), "Broken single-element Production binding found"
-          print("V9 Production bindings: OK")
+          assert "const V9_VERSION = '9.3';" in s, "Wrong V9 runtime version"
+          assert "https://ai-hq-gateway.vercel.app" in s, "Live Gateway URL missing"
+          print("V9 Production bindings/version/gateway: OK")
           PY
 
       - name: Build debug APK
