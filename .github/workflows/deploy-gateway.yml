@@ -84,7 +84,8 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          URL=$(npx vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN" --scope="alexpimenov6-2288")
+          npx vercel@59.19.1 whoami --token="$VERCEL_TOKEN"
+          URL=$(npx vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN")
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
 
