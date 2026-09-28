@@ -656,7 +656,7 @@ public class MainActivity extends Activity {
   };
 
   ensureV9();
-  v9Log('AI HQ V9.2 активирован', 'Исправлены кнопки Production и подключён live Gateway');
+  v9Log('AI HQ V9.3 активирован', 'Исправлена привязка всех Production-кнопок');
   save();
   render();
 })();
