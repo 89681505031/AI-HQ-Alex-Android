@@ -81,7 +81,7 @@ jobs:
 
           if [ "$CODE" = "404" ]; then
             echo "ai-hq-gateway is missing; recreating it..."
-            curl -fsS               -X POST               -H "Authorization: Bearer $VERCEL_TOKEN"               -H "Content-Type: application/json"               "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID"               --data '{"name":"ai-hq-gateway","framework":null,"rootDirectory":null}'               | tee /tmp/project-created.json
+            curl -fsS               -X POST               -H "Authorization: Bearer $VERCEL_TOKEN"               -H "Content-Type: application/json"               "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID"               --data '{"name":"ai-hq-gateway","framework":null,"rootDirectory":"gateway-v9"}'               | tee /tmp/project-created.json
           elif [ "$CODE" != "200" ]; then
             echo "Unexpected Vercel project lookup HTTP $CODE"
             cat /tmp/project.json || true
