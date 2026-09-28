@@ -89,11 +89,22 @@ jobs:
           PY
           grep -q 'v9.js' "$ASSETS/index.html"
           grep -q "versionName '9.3'" build-src/AI-HQ-Alex-Android/app/build.gradle
-          grep -Fq "\$\$('[data-v9-health]')" "$ASSETS/v9.js"
-          grep -Fq "\$\$('[data-v9-trial]')" "$ASSETS/v9.js"
-          grep -Fq "\$\$('[data-v9-run-all]')" "$ASSETS/v9.js"
-          if grep -Fq "\$('[data-v9-trial]')" "$ASSETS/v9.js"; then echo "Broken trial binding"; exit 1; fi
-          if grep -Fq "\$('[data-v9-run-all]')" "$ASSETS/v9.js"; then echo "Broken run-all binding"; exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("$ASSETS/v9.js").read_text()
+          required=[
+              "$('[data-v9-health]').forEach",
+              "$('[data-v9-trial]').forEach",
+              "$('[data-v9-run-all]').forEach",
+          ]
+          broken=[
+              "    $('[data-v9-trial]').forEach",
+              "    $('[data-v9-run-all]').forEach",
+          ]
+          assert all(x in s for x in required), "Missing correct Production button bindings"
+          assert all(x not in s for x in broken), "Broken single-element Production binding found"
+          print("V9 Production bindings: OK")
+          PY
 
       - name: Build debug APK
         working-directory: build-src/AI-HQ-Alex-Android
