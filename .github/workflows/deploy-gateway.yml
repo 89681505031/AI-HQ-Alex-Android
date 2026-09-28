@@ -67,14 +67,31 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Create or link Vercel project and deploy
+      - name: Create or recover Vercel project and deploy
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_tw15Bc9UJwCXpN8thgLHLRAz
+          VERCEL_SCOPE: alexpimenov6-2288
         run: |
           set -euo pipefail
           npx --yes vercel@59.19.1 whoami --token="$VERCEL_TOKEN"
-          URL=$(npx --yes vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN" --project ai-hq-gateway --cwd .)
+
+          CODE=$(curl -sS -o /tmp/project.json -w "%{http_code}"             -H "Authorization: Bearer $VERCEL_TOKEN"             "https://api.vercel.com/v9/projects/ai-hq-gateway?teamId=$VERCEL_TEAM_ID")
+
+          if [ "$CODE" = "404" ]; then
+            echo "ai-hq-gateway is missing; recreating it..."
+            curl -fsS               -X POST               -H "Authorization: Bearer $VERCEL_TOKEN"               -H "Content-Type: application/json"               "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID"               --data '{"name":"ai-hq-gateway","framework":null,"rootDirectory":null}'               | tee /tmp/project-created.json
+          elif [ "$CODE" != "200" ]; then
+            echo "Unexpected Vercel project lookup HTTP $CODE"
+            cat /tmp/project.json || true
+            exit 1
+          else
+            echo "ai-hq-gateway exists."
+          fi
+
+          URL=$(npx --yes vercel@59.19.1 deploy gateway-v9             --prod --yes             --token="$VERCEL_TOKEN"             --scope="$VERCEL_SCOPE"             --project ai-hq-gateway)
+
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
 
@@ -92,6 +109,10 @@ jobs:
           sleep 5
           curl -fsSL "$URL/health" | tee /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
+          grep -q '"sessionAuth":true' /tmp/health.json
+          grep -q '"jobSigning":true' /tmp/health.json
+          grep -q '"ownerConfigured":true' /tmp/health.json
+          grep -q '"githubAuth":true' /tmp/health.json
 
       - name: Deployment summary
         env:
