@@ -1,6 +1,6 @@
 /* AI HQ V9 — Production Gateway */
 (() => {
-  const V9_VERSION = '9.2.1';
+  const V9_VERSION = '9.3';
 
   function ensureV9() {
     state.v9 = state.v9 || {};
