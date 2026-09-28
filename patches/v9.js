@@ -1,6 +1,6 @@
 /* AI HQ V9 — Production Gateway */
 (() => {
-  const V9_VERSION = '9.3';
+  const V9_VERSION = '9.4';
 
   function ensureV9() {
     state.v9 = state.v9 || {};
@@ -350,13 +350,30 @@
 
   async function runProductionPipeline(missionId = '') {
     ensureV9();
+    if (!token()) {
+      toast('Сначала введите Session token');
+      v9Log('Production не запущен', 'Session token отсутствует', '', 'warning');
+      return false;
+    }
+    const candidates = state.v8.jobs.filter(j => j.v9 && (!missionId || j.missionId === missionId) && ['queued','failed'].includes(j.status));
+    if (!candidates.length) {
+      toast('Нет заданий Production. Сначала подготовьте испытание');
+      v9Log('Production не запущен', 'Очередь пуста', '', 'warning');
+      return false;
+    }
+    toast('Production запущен');
+    let ran = 0;
     for (let guard = 0; guard < 30; guard++) {
-      const next = state.v8.jobs.find(j => j.v9 && (!missionId || j.missionId === missionId) && j.status === 'queued' && depsReady(j));
+      const next = state.v8.jobs.find(j => j.v9 && (!missionId || j.missionId === missionId) && ['queued','failed'].includes(j.status) && depsReady(j));
       if (!next) break;
+      if (next.status === 'failed') { next.status='queued'; next.error=''; next.progress=0; }
+      ran++;
       const ok = await runProductionJob(next.id);
       if (!ok) break;
     }
     save(); render();
+    if (!ran) toast('Нет готовых заданий — проверьте предыдущий этап');
+    return ran > 0;
   }
 
   function trialFiles() {
@@ -526,7 +543,8 @@ public class MainActivity extends Activity {
         prepareProductionPipeline(mission.id);
         state.nav = 'production';
         save(); render();
-        toast('Испытание уже подготовлено');
+        toast('Испытание найдено — запускаю Production');
+        setTimeout(() => runProductionPipeline(mission.id), 50);
         return;
       }
     }
@@ -576,7 +594,8 @@ public class MainActivity extends Activity {
     prepareProductionPipeline(m.id);
     state.nav = 'production';
     save(); render();
-    toast('Первое реальное испытание готово');
+    toast('Первое реальное испытание готово — запускаю Production');
+    setTimeout(() => runProductionPipeline(m.id), 50);
   }
 
   function productionPage() {
@@ -634,6 +653,27 @@ public class MainActivity extends Activity {
     }
   };
 
+
+  function installV9DelegatedControls() {
+    if (window.__aihqV9DelegatedControls) return;
+    window.__aihqV9DelegatedControls = true;
+    document.addEventListener('click', e => {
+      const el = e.target.closest?.('[data-v9-trial],[data-v9-run-all],[data-v9-health],[data-v9-run],[data-v9-approve],[data-v9-reject],[data-v9-open]');
+      if (!el) return;
+      if (el.dataset.v9Trial !== undefined) { e.preventDefault(); createFirstRealTrial(); return; }
+      if (el.dataset.v9RunAll !== undefined) { e.preventDefault(); runProductionPipeline(''); return; }
+      if (el.dataset.v9Health !== undefined) { e.preventDefault(); checkProductionGateway(); return; }
+      if (el.dataset.v9Run) { e.preventDefault(); runProductionJob(el.dataset.v9Run); return; }
+      if (el.dataset.v9Approve) { e.preventDefault(); approveRelease(el.dataset.v9Approve); return; }
+      if (el.dataset.v9Reject) { e.preventDefault(); rejectRelease(el.dataset.v9Reject); return; }
+      if (el.dataset.v9Open) {
+        e.preventDefault();
+        const url = el.dataset.v9Open;
+        if (/^https?:\/\//i.test(url)) window.open(url, '_blank'); else toast(url);
+      }
+    }, true);
+  }
+
   const oldBindGlobal = bindGlobal;
   bindGlobal = function() {
     oldBindGlobal();
@@ -656,7 +696,8 @@ public class MainActivity extends Activity {
   };
 
   ensureV9();
-  v9Log('AI HQ V9.3 активирован', 'Исправлена привязка всех Production-кнопок');
+  installV9DelegatedControls();
+  v9Log('AI HQ V9.4 активирован', 'Надёжный запуск Production + автозапуск Trial Mode');
   save();
   render();
 })();
