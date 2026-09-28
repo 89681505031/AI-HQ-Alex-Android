@@ -67,25 +67,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Prepare isolated gateway directory
-        run: |
-          rm -rf /tmp/ai-hq-gateway
-          mkdir -p /tmp/ai-hq-gateway
-          cp -R gateway-v9/. /tmp/ai-hq-gateway/
-
-      - name: Install pinned Vercel CLI
-        working-directory: /tmp/ai-hq-gateway
-        run: npm install --no-save vercel@59.19.1
-
       - name: Create or link Vercel project and deploy
         id: deploy
-        working-directory: /tmp/ai-hq-gateway
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          npx vercel@59.19.1 whoami --token="$VERCEL_TOKEN"
-          URL=$(npx vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN")
+          npx --yes vercel@59.19.1 whoami --token="$VERCEL_TOKEN"
+          URL=$(npx --yes vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN" --project ai-hq-gateway --cwd .)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
 
