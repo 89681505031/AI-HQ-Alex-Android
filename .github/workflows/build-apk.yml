@@ -21,16 +21,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
 
-      - name: Unpack Android source
+      - name: Reconstruct Android source
         run: |
           rm -rf build-src
           mkdir -p build-src
-          unzip -q source/AI-HQ-Alex-Android-Repo.zip -d build-src
+          cat source-b64/part*.txt > /tmp/aihq-source.b64
+          base64 -d /tmp/aihq-source.b64 > /tmp/aihq-source.tar.gz
+          echo "907f49ee4918baaf65c2e51b1ef9412249b5d5cf50467bddfb4eb4b54b5ee3c4  /tmp/aihq-source.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/aihq-source.tar.gz -C build-src
           test -f build-src/AI-HQ-Alex-Android/settings.gradle
 
       - name: Build debug APK
