@@ -1,0 +1,13 @@
+{
+  "name": "aihq-production-gateway",
+  "private": true,
+  "version": "9.0.0",
+  "type": "module",
+  "scripts": {
+    "check": "node --check api/health.mjs && node --check api/jobs.mjs && node --check api/job.mjs && node --check lib/providers.mjs && node --check lib/utils.mjs",
+    "selftest": "node test/selftest.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
