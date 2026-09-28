@@ -21,27 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.check.outputs.ready }}
-      missing: ${{ steps.check.outputs.missing }}
     steps:
-      - name: Check deployment secret names
+      - name: Check Vercel deployment token
         id: check
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
         run: |
-          missing=""
-          [ -z "$VERCEL_TOKEN" ] && missing="$missing GATEWAY_VERCEL_TOKEN"
-          [ -z "$VERCEL_ORG_ID" ] && missing="$missing GATEWAY_VERCEL_ORG_ID"
-          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing GATEWAY_VERCEL_PROJECT_ID"
-          if [ -n "$missing" ]; then
+          if [ -z "$VERCEL_TOKEN" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "missing=$missing" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Gateway deploy not configured::Missing secret names:$missing"
+            echo "::notice title=Gateway deploy not configured::Missing secret name: GATEWAY_VERCEL_TOKEN"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "missing=" >> "$GITHUB_OUTPUT"
           fi
 
   validate:
@@ -67,9 +58,6 @@ jobs:
     needs: [preflight, validate]
     if: github.event_name != 'pull_request' && needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: gateway-v9
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,32 +67,24 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Prepare isolated gateway directory
+        run: |
+          rm -rf /tmp/ai-hq-gateway
+          mkdir -p /tmp/ai-hq-gateway
+          cp -R gateway-v9/. /tmp/ai-hq-gateway/
+
       - name: Install pinned Vercel CLI
+        working-directory: /tmp/ai-hq-gateway
         run: npm install --no-save vercel@59.19.1
 
-      - name: Pull Vercel project settings
-        env:
-          VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
-        run: npx vercel@59.19.1 pull --yes --environment=production --token="$VERCEL_TOKEN"
-
-      - name: Build gateway
-        env:
-          VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
-        run: npx vercel@59.19.1 build --prod --token="$VERCEL_TOKEN"
-
-      - name: Deploy gateway to production
+      - name: Create or link Vercel project and deploy
         id: deploy
+        working-directory: /tmp/ai-hq-gateway
         env:
           VERCEL_TOKEN: ${{ secrets.GATEWAY_VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.GATEWAY_VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.GATEWAY_VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          URL=$(npx vercel@59.19.1 deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          URL=$(npx vercel@59.19.1 deploy --prod --yes --token="$VERCEL_TOKEN" --scope="alexpimenov6-2288")
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
 
@@ -127,7 +107,7 @@ jobs:
             echo "- Status: READY"
             echo "- URL: $URL"
             echo "- Health: OK"
-            echo "- Vercel CLI: 59.19.1"
+            echo "- Vercel project is created/linked automatically."
           } >> "$GITHUB_STEP_SUMMARY"
 
   not-configured:
@@ -137,6 +117,6 @@ jobs:
     steps:
       - name: Deployment skipped safely
         run: |
-          echo "Gateway code is valid, but Vercel deployment is not configured."
-          echo "Missing secret names: ${{ needs.preflight.outputs.missing }}"
-          echo "No secret values were read or printed."
+          echo "Gateway source is valid."
+          echo "Missing GitHub Actions secret name: GATEWAY_VERCEL_TOKEN"
+          echo "Create the secret under repository Settings > Secrets and variables > Actions."
