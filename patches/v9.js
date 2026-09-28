@@ -637,8 +637,8 @@ public class MainActivity extends Activity {
   const oldBindGlobal = bindGlobal;
   bindGlobal = function() {
     oldBindGlobal();
-    $('[data-v9-trial]').forEach(b => b.onclick = createFirstRealTrial);
-    $('[data-v9-run-all]').forEach(b => b.onclick = () => runProductionPipeline(''));
+    $$('[data-v9-trial]').forEach(b => b.onclick = createFirstRealTrial);
+    $$('[data-v9-run-all]').forEach(b => b.onclick = () => runProductionPipeline(''));
     $$('[data-v9-health]').forEach(b => b.onclick = checkProductionGateway);
     $$('[data-v9-run]').forEach(b => b.onclick = () => runProductionJob(b.dataset.v9Run));
     $$('[data-v9-approve]').forEach(b => b.onclick = () => approveRelease(b.dataset.v9Approve));
@@ -656,7 +656,7 @@ public class MainActivity extends Activity {
   };
 
   ensureV9();
-  v9Log('AI HQ V9.2 активирован', 'Исправлены кнопки Production и подключён live Gateway');
+  v9Log('AI HQ V9.3 активирован', 'Исправлена привязка всех Production-кнопок');
   save();
   render();
 })();
