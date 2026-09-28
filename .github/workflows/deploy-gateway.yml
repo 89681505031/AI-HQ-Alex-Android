@@ -90,7 +90,7 @@ jobs:
             echo "ai-hq-gateway exists."
           fi
 
-          URL=$(npx --yes vercel@59.19.1 deploy gateway-v9             --prod --yes             --token="$VERCEL_TOKEN"             --scope="$VERCEL_SCOPE"             --project ai-hq-gateway)
+          URL=$(npx --yes vercel@59.19.1 deploy             --prod --yes             --token="$VERCEL_TOKEN"             --scope="$VERCEL_SCOPE"             --project ai-hq-gateway             --cwd .)
 
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Gateway URL: $URL"
