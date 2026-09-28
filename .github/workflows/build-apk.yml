@@ -104,5 +104,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AI-HQ-Alex-v9.1-trial-debug-apk
-          path: out/AI-HQ-Alex-v9-debug.apk
+          path: out/AI-HQ-Alex-v9.1-trial-debug.apk
           if-no-files-found: error
